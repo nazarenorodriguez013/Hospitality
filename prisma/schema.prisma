@@ -1,0 +1,161 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model folio_transactions {
+  id               Int       @id @default(autoincrement())
+  folio_id         Int?
+  transaction_type String    @db.VarChar(20)
+  description      String    @db.VarChar(255)
+  amount           Decimal   @db.Decimal(10, 2)
+  pos_order_id     Int?
+  created_at       DateTime? @default(now()) @db.Timestamp(6)
+  folios           folios?   @relation(fields: [folio_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model folios {
+  id                 Int                  @id @default(autoincrement())
+  reservation_id     Int?
+  status             String?              @default("Abierto") @db.VarChar(20)
+  created_at         DateTime?            @default(now()) @db.Timestamp(6)
+  folio_transactions folio_transactions[]
+  reservations       reservations?        @relation(fields: [reservation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model guests {
+  id              Int            @id @default(autoincrement())
+  first_name      String         @db.VarChar(100)
+  last_name       String         @db.VarChar(100)
+  email           String?        @unique @db.VarChar(150)
+  phone           String?        @db.VarChar(50)
+  document_number String?        @unique @db.VarChar(50)
+  created_at      DateTime?      @default(now()) @db.Timestamp(6)
+  reservations    reservations[]
+}
+
+model ingredients {
+  id                     Int                      @id @default(autoincrement())
+  name                   String                   @db.VarChar(100)
+  unit_of_measure        String                   @db.VarChar(20)
+  current_stock          Decimal?                 @default(0.000) @db.Decimal(10, 3)
+  min_stock_alert        Decimal?                 @default(5.000) @db.Decimal(10, 3)
+  inventory_transactions inventory_transactions[]
+  recipes                recipes[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model inventory_transactions {
+  id               Int          @id @default(autoincrement())
+  ingredient_id    Int?
+  transaction_type String       @db.VarChar(20)
+  quantity         Decimal      @db.Decimal(10, 3)
+  reason           String?      @db.VarChar(255)
+  created_at       DateTime?    @default(now()) @db.Timestamp(6)
+  ingredients      ingredients? @relation(fields: [ingredient_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model pos_order_items {
+  id             Int         @id @default(autoincrement())
+  pos_order_id   Int?
+  product_id     Int?
+  quantity       Int
+  unit_price     Decimal     @db.Decimal(10, 2)
+  kitchen_status String?     @default("Pendiente") @db.VarChar(20)
+  pos_orders     pos_orders? @relation(fields: [pos_order_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  products       products?   @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model pos_orders {
+  id              Int               @id @default(autoincrement())
+  table_id        Int?
+  user_id         Int?
+  status          String?           @default("Abierta") @db.VarChar(20)
+  total_amount    Decimal?          @default(0.00) @db.Decimal(10, 2)
+  created_at      DateTime?         @default(now()) @db.Timestamp(6)
+  pos_order_items pos_order_items[]
+  tables          tables?           @relation(fields: [table_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users           users?            @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model product_categories {
+  id       Int        @id @default(autoincrement())
+  name     String     @unique @db.VarChar(50)
+  products products[]
+}
+
+model products {
+  id                 Int                 @id @default(autoincrement())
+  category_id        Int?
+  name               String              @db.VarChar(100)
+  price              Decimal             @db.Decimal(10, 2)
+  requires_kitchen   Boolean?            @default(true)
+  is_active          Boolean?            @default(true)
+  pos_order_items    pos_order_items[]
+  product_categories product_categories? @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  recipes            recipes[]
+}
+
+model recipes {
+  id            Int          @id @default(autoincrement())
+  product_id    Int?
+  ingredient_id Int?
+  quantity      Decimal      @db.Decimal(10, 3)
+  ingredients   ingredients? @relation(fields: [ingredient_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  products      products?    @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([product_id, ingredient_id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model reservations {
+  id             Int       @id @default(autoincrement())
+  guest_id       Int?
+  room_id        Int?
+  check_in_date  DateTime  @db.Date
+  check_out_date DateTime  @db.Date
+  status         String?   @default("Confirmada") @db.VarChar(20)
+  credit_limit   Decimal?  @default(0.00) @db.Decimal(10, 2)
+  created_at     DateTime? @default(now()) @db.Timestamp(6)
+  folios         folios[]
+  guests         guests?   @relation(fields: [guest_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  rooms          rooms?    @relation(fields: [room_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model rooms {
+  id           Int            @id @default(autoincrement())
+  room_number  String         @unique @db.VarChar(10)
+  room_type    String         @db.VarChar(50)
+  capacity     Int
+  status       String?        @default("Limpia") @db.VarChar(20)
+  reservations reservations[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model tables {
+  id           Int          @id @default(autoincrement())
+  table_number Int          @unique
+  zone         String?      @default("Salon Principal") @db.VarChar(50)
+  capacity     Int
+  status       String?      @default("Libre") @db.VarChar(20)
+  pos_orders   pos_orders[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model users {
+  id            Int          @id @default(autoincrement())
+  username      String       @unique @db.VarChar(50)
+  password_hash String       @db.VarChar(255)
+  role          String       @db.VarChar(20)
+  created_at    DateTime?    @default(now()) @db.Timestamp(6)
+  pos_orders    pos_orders[]
+}
